@@ -7,6 +7,8 @@ from prompt_templates import prompt_templates
 load_dotenv()
 app = FastAPI()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise Exception("OPENAI_API_KEY is not set.")
 
 @app.post("/chat")
 async def chat(request: Request):
@@ -15,14 +17,17 @@ async def chat(request: Request):
         messages = body.get("messages")
         mode = body.get("mode", "azoni")
 
-        template = prompt_templates.get(mode)
-        if not template:
-            raise HTTPException(status_code=400, detail="Invalid mode")
+        print("MODE:", mode)
+        print("MESSAGES:", messages)
 
-        structured_messages = [
-            {"role": "system", "content": template["system"]},
-            *messages
-        ]
+        if not messages or not isinstance(messages, list):
+            raise HTTPException(status_code=400, detail="Invalid 'messages' format")
+
+        # Add system prompt
+        template = prompt_templates.get(mode, {})
+        system_prompt = template.get("system", "")
+
+        structured_messages = [{"role": "system", "content": system_prompt}] + messages
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -32,10 +37,11 @@ async def chat(request: Request):
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": "gpt-3.5-turbo",
                     "messages": structured_messages
                 }
             )
+        response.raise_for_status()
         return response.json()
     except httpx.HTTPError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI request failed: {str(e)}")

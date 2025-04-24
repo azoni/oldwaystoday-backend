@@ -3,6 +3,18 @@ from dotenv import load_dotenv
 import os
 import httpx
 from prompt_templates import prompt_templates
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# 🔓 Allow frontend (localhost during dev)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8888", "https://oldwaystoday.com"],  # or ["*"] for testing only
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 load_dotenv()
 app = FastAPI()

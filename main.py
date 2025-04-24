@@ -7,10 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# 🔓 Allow frontend (localhost during dev)
+# ✅ Add this CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8888", "https://oldwaystoday.com"],  # or ["*"] for testing only
+    allow_origins=[
+        "http://localhost:8888",        # Local dev
+        "https://oldwaystoday.com"     # Production site
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,6 +28,7 @@ if not OPENAI_API_KEY:
 @app.post("/chat")
 async def chat(request: Request):
     try:
+        print("Incoming origin:", request.headers.get("origin"))
         body = await request.json()
         messages = body.get("messages")
         mode = body.get("mode", "azoni")

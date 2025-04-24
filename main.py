@@ -20,7 +20,6 @@ app.add_middleware(
 )
 
 load_dotenv()
-app = FastAPI()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise Exception("OPENAI_API_KEY is not set.")

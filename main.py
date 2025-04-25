@@ -151,7 +151,16 @@ async def chat(request: Request):
                     "messages": structured_messages
                 }
             )
-        logging.info(f"✅ OpenAI response tokens: {response['usage']['total_tokens']}")
+        # ✅ Parse the actual response JSON
+        response_json = response.json()
+
+        # ✅ Now you can log tokens safely
+        usage = response_json.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        logging.info(f"✅ OpenAI response tokens — Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
 
         response.raise_for_status()
         return response.json()

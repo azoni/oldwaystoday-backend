@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import os
 import httpx
 from prompt_templates import prompt_templates
+from assistant_messages import error_messages
 
 app = FastAPI()
 
@@ -34,6 +35,24 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print("🔥 Unhandled Error:", exc)
+    return JSONResponse(
+        status_code=200,  # looks successful to frontend
+        content={
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": (
+                            error_messages["server_error"]
+                        )
+                    }
+                }
+            ]
+        }
+    )
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc):
     return JSONResponse(
@@ -44,8 +63,7 @@ async def rate_limit_handler(request: Request, exc):
                     "message": {
                         "role": "assistant",
                         "content": (
-                            "You've asked many questions, wise one 🌿\n\n"
-                            "Let your thoughts settle, and return with clarity in a moment."
+                            error_messages["rate_limit"]
                         )
                     }
                 }
@@ -70,6 +88,34 @@ async def chat(request: Request):
 
         if not messages or not isinstance(messages, list):
             raise HTTPException(status_code=400, detail="Invalid 'messages' format")
+        
+        # ✅ Extract user's latest message
+        user_message = ""
+        for msg in reversed(messages):
+            if msg["role"] == "user":
+                user_message = msg["content"]
+                break
+
+        # ✅ Check word count
+        word_count = len(user_message.split())
+        print(f"🔹 User message word count: {word_count}")
+
+        if word_count > 250:  # or whatever limit you want
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "choices": [
+                        {
+                            "message": {
+                                "role": "assistant",
+                                "content": (
+                                    error_messages["too_long"]
+                                )
+                            }
+                        }
+                    ]
+                }
+            )
 
         # Add system prompt
         template = prompt_templates.get(mode, {})

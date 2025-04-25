@@ -12,6 +12,7 @@ from prompt_templates import prompt_templates
 from assistant_messages import error_messages
 import logging
 from datetime import datetime
+import traceback
 
 # Basic log setup
 logging.basicConfig(
@@ -48,7 +49,11 @@ app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logging.exception("🔥 Unhandled server error:")
+    logging.error("🔥 Unhandled Exception:")
+    logging.error("🔍 Exception Type: %s", type(exc).__name__)
+    logging.error("📄 Exception Message: %s", str(exc))
+    logging.error("📚 Full Traceback:\n%s", traceback.format_exc())
+    
     return JSONResponse(
         status_code=200,  # looks successful to frontend
         content={
@@ -111,7 +116,7 @@ async def chat(request: Request):
         word_count = len(user_message.split())
         print(f"🔹 User message word count: {word_count}")
 
-        if word_count > 250:  # or whatever limit you want
+        if word_count > 100:  # or whatever limit you want
             return JSONResponse(
                 status_code=200,
                 content={

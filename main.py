@@ -10,7 +10,18 @@ import os
 import httpx
 from prompt_templates import prompt_templates
 from assistant_messages import error_messages
+import logging
+from datetime import datetime
 
+# Basic log setup
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("server.log"),
+        logging.StreamHandler()
+    ]
+)
 app = FastAPI()
 
 # ✅ Add this CORS middleware
@@ -37,7 +48,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print("🔥 Unhandled Error:", exc)
+    logging.exception("🔥 Unhandled server error:")
     return JSONResponse(
         status_code=200,  # looks successful to frontend
         content={
@@ -77,7 +88,7 @@ async def ping():
     return {"status": "ok"}
 
 @app.post("/chat")
-@limiter.limit("10/minute")  # Adjust this rate as needed
+@limiter.limit("50/minute")  # Adjust this rate as needed
 async def chat(request: Request):
     try:
         ip = request.client.host
@@ -121,6 +132,7 @@ async def chat(request: Request):
         template = prompt_templates.get(mode, {})
         system_prompt = template.get("system", "")
         structured_messages = [{"role": "system", "content": system_prompt}] + messages
+        logging.info(f"🔸 New request from {request.client.host} | Mode: {mode} | Msg: {messages[-1]['content'][:100]}")
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -134,6 +146,8 @@ async def chat(request: Request):
                     "messages": structured_messages
                 }
             )
+        logging.info(f"✅ OpenAI response tokens: {response['usage']['total_tokens']}")
+
         response.raise_for_status()
         return response.json()
     except httpx.HTTPError as e:

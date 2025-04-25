@@ -159,8 +159,17 @@ async def chat(request: Request):
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)
         total_tokens = usage.get("total_tokens", 0)
+        
+        # 💵 Calculate cost
+        PROMPT_COST_PER_1K = 0.0005
+        COMPLETION_COST_PER_1K = 0.0015
 
-        logging.info(f"✅ OpenAI response tokens — Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
+        prompt_cost = (prompt_tokens / 1000) * PROMPT_COST_PER_1K
+        completion_cost = (completion_tokens / 1000) * COMPLETION_COST_PER_1K
+        total_cost = prompt_cost + completion_cost
+
+        logging.info(f"✅ Tokens — Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
+        logging.info(f"💵 Estimated cost: ${total_cost:.6f}")
 
         response.raise_for_status()
         return response.json()

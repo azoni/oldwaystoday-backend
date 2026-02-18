@@ -39,6 +39,7 @@ app.add_middleware(
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+AGENT_WEBHOOK_SECRET = os.getenv("AGENT_WEBHOOK_SECRET", "")
 if not OPENAI_API_KEY:
     raise Exception("OPENAI_API_KEY is not set.")
 
@@ -172,7 +173,33 @@ async def chat(request: Request):
         logging.info(f"💵 Estimated cost: ${total_cost:.6f}")
 
         response.raise_for_status()
-        return response.json()
+
+        # Log to azoni.ai agent_activity for Live System Map visualization
+        try:
+            async with httpx.AsyncClient() as log_client:
+                await log_client.post(
+                    "https://azoni.ai/.netlify/functions/log-agent-activity",
+                    json={
+                        "type": "owt_chat",
+                        "title": f"Chat: {user_message[:60]}",
+                        "description": (response_json.get("choices", [{}])[0].get("message", {}).get("content", ""))[:200],
+                        "source": "oldwaystoday",
+                        "model": "gpt-3.5-turbo",
+                        "tokens": {
+                            "prompt": prompt_tokens,
+                            "completion": completion_tokens,
+                            "total": total_tokens,
+                        },
+                        "cost": total_cost,
+                        "metadata": {"mode": mode},
+                        "secret": AGENT_WEBHOOK_SECRET,
+                    },
+                    timeout=5,
+                )
+        except Exception:
+            pass  # Non-blocking — don't fail the chat response
+
+        return response_json
     except httpx.HTTPError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI request failed: {str(e)}")
     except Exception as e:
